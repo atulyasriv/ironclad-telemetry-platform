@@ -158,7 +158,9 @@ function App() {
 
   // ── WEBSOCKET ─────────────────────────────────
   useEffect(() => {
-    const socket = new WebSocket("ws://127.0.0.1:8000/ws/live-data");
+    const socket = new WebSocket(
+      "wss://ironclad-backend-updated.onrender.com/ws/live-data",
+    );
     socket.onopen = () => setWsConnected(true);
     socket.onmessage = (event) => {
       const p = JSON.parse(event.data);
