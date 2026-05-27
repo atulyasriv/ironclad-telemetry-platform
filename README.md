@@ -316,12 +316,8 @@ Events should be meaningful. Broadcasting "NORMAL" 30 times/minute creates noise
 
 ## Author
 
-**Your Name**
-Third Year CS Student · Nagpur, India
-[GitHub](https://github.com/yourusername) · [LinkedIn](https://linkedin.com/in/yourprofile)
+**Atulya Srivastava**
+Third Year CS Student · Mumbai, India
+[GitHub](https://github.com/atulyasriv) 
 
----
 
-## License
-
-MIT License — free to use, modify, and distribute.
