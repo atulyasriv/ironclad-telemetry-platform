@@ -303,8 +303,7 @@ Events should be meaningful. Broadcasting "NORMAL" 30 times/minute creates noise
 
 ## Future Roadmap
 
-- [ ] Deploy backend to Railway / Render
-- [ ] Deploy frontend to Vercel
+
 - [ ] Add InfluxDB for time-series persistence
 - [ ] Add pytest integration test suite
 - [ ] Historical trend charts (last 24h)
