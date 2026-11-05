@@ -1,22 +1,15 @@
-# IRONCLAD — Real-Time Industrial Telemetry Platform
+# IRONCLAD: Real-Time Industrial Telemetry Platform
 
-![Status](https://img.shields.io/badge/status-active-brightgreen)
-![Python](https://img.shields.io/badge/python-3.10+-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-teal)
-![React](https://img.shields.io/badge/React-18+-61dafb)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
+A real-time monitoring dashboard for a simulated factory. A FastAPI backend simulates five machines with correlated telemetry, classifies their condition with a rule-based severity engine, and streams everything to a React frontend over a WebSocket. Live ambient weather data from OpenWeatherMap feeds into the cooling system's load.
 
-A real-time industrial IoT telemetry monitoring platform that streams live factory machine data via WebSockets, detects operational anomalies through a rule-based severity engine, and integrates live ambient weather data to drive physically correlated factory simulations.
+> **Note:** All machine telemetry is **simulated**. Only the ambient weather data is real. This is a portfolio project built to demonstrate real-time system design, not a production monitoring tool.
 
-> Built as a portfolio project demonstrating real-time systems architecture, correlated telemetry simulation, and event-driven operational intelligence — without LLMs or autonomous AI.
+**Live demo:** https://ironclad-telemetry-platform.vercel.app
+<!-- TODO: confirm the demo's backend is reachable. If the WebSocket backend is not deployed, say so here. -->
 
----
-
-## Live Demo
-
-> Screenshot
-
-![IRONCLAD Dashboard](./screenshots/dashboard.png)
+<!-- TODO: add a screenshot. Create a screenshots/ folder, add dashboard.png, then uncomment:
+![IRONCLAD Dashboard](screenshots/dashboard.png)
+-->
 
 ---
 
@@ -24,98 +17,79 @@ A real-time industrial IoT telemetry monitoring platform that streams live facto
 
 ```
 OpenWeatherMap API (Nagpur)
-        │
-        ▼ every 5 min
-┌─────────────────────────────┐
-│     FastAPI Backend         │
-│                             │
-│  ┌─────────────────────┐    │
-│  │  Factory Simulator  │    │
-│  │  (correlated physics│    │
-│  │   5 machines)       │    │
-│  └────────┬────────────┘    │
-│           │                 │
-│  ┌────────▼────────────┐    │
-│  │  Severity Engine    │    │
-│  │  Rule-based Insights│    │
-│  │  Event Log          │    │
-│  └────────┬────────────┘    │
-│           │                 │
-│  ┌────────▼────────────┐    │
-│  │  WebSocket Stream   │◄───┘
-│  │  /ws/live-data      │
-│  │  2s interval        │
-│  └────────┬────────────┘    │
-└───────────┼─────────────────┘
-            │
-            ▼
-┌─────────────────────────────┐
-│     React Frontend          │
-│                             │
-│  KPI Cards  │  Fleet Table  │
-│  Charts     │  Event Log    │
-│  Insights   │  Weather Card │
-└─────────────────────────────┘
+        |
+        v  every 5 min
++-----------------------------+
+|     FastAPI Backend         |
+|                             |
+|  Factory Simulator          |
+|  (correlated, 5 machines)   |
+|          |                  |
+|  Severity Engine            |
+|  Rule-based insights        |
+|  Event log                  |
+|          |                  |
+|  WebSocket /ws/live-data    |
+|  (2 s interval)             |
++-----------+-----------------+
+            |
+            v
++-----------------------------+
+|     React Frontend          |
+|  KPI cards, fleet table,    |
+|  charts, event log,         |
+|  insights, weather card     |
++-----------------------------+
 ```
 
----
+## Features
 
-## Key Features
-
-### Correlated Telemetry Physics
-Unlike naive random-walk simulations, IRONCLAD models causal industrial relationships:
+### Correlated telemetry simulation
+Instead of independent random noise, the simulator models cause and effect:
 
 ```
-Production ↑  →  Electricity ↑
-Electricity ↑  →  Temperature slowly ↑
-Temperature ↑  →  Machine Health slowly ↓
-Cooling Anomaly  →  Thermal spike cascades to Boiler + Assembly Lines
-Ambient Heat (real) →  Cooling Load ↑  →  Electricity ↑
+Production up      -> Electricity up
+Electricity up     -> Temperature slowly up
+Temperature up     -> Machine health slowly down
+Cooling anomaly    -> Thermal spike spreads to Boiler and Assembly Lines
+Ambient heat       -> Cooling load up -> Electricity up
 ```
 
-### Multi-Machine Fleet
-Five independently simulated machines with correlated physics:
+### Five simulated machines
 
-| Machine | Metrics | Notes |
-|---|---|---|
-| Boiler Unit | Electricity, Temperature, Health, Diesel | Diesel-consuming, thermal anchor |
-| Assembly Line A | Electricity, Temperature, Health, Production | Primary output driver |
-| Assembly Line B | Electricity, Temperature, Health, Production | Secondary output driver |
-| Cooling System | Electricity, Temperature, Health | Driven by real ambient weather |
-| Packaging Unit | Electricity, Temperature, Health, Production | Scales with assembly output |
+| Machine | Metrics |
+|---|---|
+| Boiler Unit | Electricity, Temperature, Health, Diesel |
+| Assembly Line A | Electricity, Temperature, Health, Production |
+| Assembly Line B | Electricity, Temperature, Health, Production |
+| Cooling System | Electricity, Temperature, Health |
+| Packaging Unit | Electricity, Temperature, Health, Production |
 
-### Real Ambient Data Integration
-Cooling System electricity load is driven by **live Nagpur weather** via OpenWeatherMap:
+### Live weather input
+The cooling system's electricity load depends on real ambient temperature for Nagpur from OpenWeatherMap:
 
 ```python
 ambient_load = max(0, int((ambient_temp_c - 25) * 800))
-# 0 extra load at 25°C baseline
-# +10,400W extra load at 38°C Nagpur summer peak
+# 0 extra load at 25 C, about +10,400 W at 38 C
 ```
 
-This is a **digital twin pattern** — real environmental data feeding a correlated simulation. In production, the simulator would be replaced by IoT sensors, SCADA systems, or MQTT streams.
+If the weather API is unavailable, the simulator falls back to a default value. <!-- TODO: confirm this fallback exists in main.py, or delete this sentence. -->
 
-### Rule-Based Severity Engine
-No LLMs. Deterministic, explainable, fast:
+### Rule-based severity engine
+Deterministic and explainable, with no machine learning involved:
 
-| Severity | Conditions |
+| Severity | Conditions (any one) |
 |---|---|
-| CRITICAL | Temp > 105°C OR Health < 55% OR Electricity > ₹9,00,000 |
-| HIGH | Temp > 90°C OR Health < 70% OR Electricity > ₹7,00,000 |
-| WARNING | Temp > 78°C OR Health < 82% OR Electricity > ₹5,00,000 |
-| NORMAL | All within threshold |
+| CRITICAL | Temp > 105 C, Health < 55%, or Electricity > 9,00,000 |
+| HIGH | Temp > 90 C, Health < 70%, or Electricity > 7,00,000 |
+| WARNING | Temp > 78 C, Health < 82%, or Electricity > 5,00,000 |
+| NORMAL | All values within thresholds |
 
-### Event Log Engine
-Operational events fire only on **state transitions** — severity escalations, anomaly starts/recoveries. Rolling 20-event history streamed via WebSocket.
+### Event log
+Events are logged only on state changes (severity escalations, anomaly start and recovery). The most recent 20 events are included in the stream.
 
-### WebSocket Streaming
-Single WebSocket endpoint streams everything at 2-second intervals:
-- Live KPI aggregates (chart-compatible)
-- Per-machine fleet states
-- Rule-based operational insights
-- Recommendations
-- Event log
-- Live weather data
+### WebSocket streaming
+One endpoint pushes aggregate KPIs, per-machine state, insights, recommendations, the event log and weather every 2 seconds.
 
 ---
 
@@ -124,94 +98,78 @@ Single WebSocket endpoint streams everything at 2-second intervals:
 | Layer | Technology |
 |---|---|
 | Backend | Python 3.10+, FastAPI, asyncio |
-| Realtime | WebSockets (native FastAPI) |
+| Realtime | FastAPI WebSockets |
 | Frontend | React 18, Recharts, Tailwind CSS |
 | Weather | OpenWeatherMap API (free tier) |
-| HTTP Client | httpx (async) |
-| Package Manager | npm, pip |
+| HTTP client | httpx |
+| Storage | SQLite file (`factory_data.db`) <!-- TODO: state what it stores, or remove it from the repo --> |
 
----
-
-## Project Structure
+## Repository Layout
 
 ```
-ironclad/
-├── backend/
-│   ├── main.py           # FastAPI app, simulator, WebSocket, weather
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   └── App.jsx       # React dashboard
-│   ├── package.json
-│   └── tailwind.config.js
-├── tests/
-│   └── test_main.py      # pytest test suite
-├── screenshots/
-│   └── dashboard.png
+ironclad-telemetry-platform/
+├── main.py            # FastAPI app: simulator, severity engine, WebSocket, weather
+├── requirements.txt   # Python dependencies
+├── factory_data.db    # SQLite database <!-- TODO: explain or remove -->
+├── uploads/           # <!-- TODO: explain what this folder is for, or remove -->
+├── frontend/          # React dashboard
 └── README.md
 ```
-
----
 
 ## Getting Started
 
 ### Prerequisites
 - Python 3.10+
 - Node.js 18+
-- Free API key from [openweathermap.org](https://openweathermap.org/api)
+- A free API key from https://openweathermap.org/api
 
-### Backend Setup
+### Backend
 
 ```bash
-# Clone the repo
-git clone https://github.com/yourusername/ironclad.git
-cd ironclad/backend
+git clone https://github.com/atulyasriv/ironclad-telemetry-platform.git
+cd ironclad-telemetry-platform
 
-# Install dependencies
-pip install fastapi uvicorn httpx
+pip install -r requirements.txt
 
-# Set your OpenWeatherMap API key
+# macOS / Linux
 export OWM_API_KEY="your_key_here"
+# Windows PowerShell
+# $env:OWM_API_KEY="your_key_here"
 
-# Run the server
 uvicorn main:app --reload
 ```
 
-Backend runs at `http://127.0.0.1:8000`
+The backend runs at http://127.0.0.1:8000
 
-### Frontend Setup
+### Frontend
 
 ```bash
-cd ironclad/frontend
-
-# Install dependencies
+cd frontend
 npm install
-
-# Start dev server
 npm run dev
 ```
 
-Frontend runs at `http://localhost:5173`
+The frontend runs at http://localhost:5173 <!-- TODO: confirm the port after running it -->
 
-### Environment Variables
+### Environment variables
 
 | Variable | Required | Description |
 |---|---|---|
-| `OWM_API_KEY` | Yes | OpenWeatherMap free tier key |
-
----
+| `OWM_API_KEY` | Yes | OpenWeatherMap API key |
 
 ## API Reference
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/ws/live-data` | WebSocket | Full telemetry stream at 2s intervals |
+| `/ws/live-data` | WebSocket | Full telemetry stream every 2 s |
 | `/live-factory-data` | GET | Current aggregated factory snapshot |
 | `/machines` | GET | All machine states |
-| `/weather` | GET | Current ambient weather state |
-| `/events` | GET | Recent operational event log |
+| `/weather` | GET | Current ambient weather |
+| `/events` | GET | Recent event log |
 
-### WebSocket Payload Schema
+<!-- TODO: open main.py and confirm each endpoint above exists and the names match exactly. -->
+
+### Example stream payload
 
 ```json
 {
@@ -232,7 +190,7 @@ Frontend runs at `http://localhost:5173`
       "status": "CRITICAL"
     }
   },
-  "ai_operational_insights": ["CRITICAL: Boiler Unit at 118°C..."],
+  "ai_operational_insights": ["CRITICAL: Boiler Unit at 118 C..."],
   "operational_recommendations": ["Emergency cooling inspection required..."],
   "event_log": [
     { "time": "11:41:22", "message": "Boiler Unit severity escalated to CRITICAL.", "severity": "CRITICAL" }
@@ -249,74 +207,34 @@ Frontend runs at `http://localhost:5173`
 }
 ```
 
----
-
-## Running Tests
-
-```bash
-cd backend
-pip install pytest pytest-asyncio httpx
-
-pytest tests/ -v
-```
-
-Test coverage includes:
-- Severity engine correctness across all threshold boundaries
-- Simulation bounds — no metric ever exceeds defined safety limits
-- WebSocket payload schema validation
-- Insight engine fires correctly on anomalous conditions
-- Event log state transition logic
-
----
-
-## Production Replacement Guide
-
-IRONCLAD is architected so the simulator is the **only layer** that changes in production:
-
-| Simulator Component | Production Replacement |
-|---|---|
-| `random.randint()` fluctuations | IoT sensor MQTT stream |
-| `simulate_factory()` coroutine | SCADA / PLC data adapter |
-| `fetch_weather()` | Additional real sensor feeds |
-| SQLite (if added) | InfluxDB / TimescaleDB time-series store |
-| Rule-based insights | ML anomaly detection (Isolation Forest, LSTM) |
-
-The WebSocket layer, React frontend, severity engine, and event log require **zero changes** for real hardware integration.
-
----
+Note: the field names `ai_operational_insights` and `ai_loading` are historical. The insights are produced by deterministic rules, not by an AI model.
 
 ## Design Decisions
 
-**Why no LLM/Gemini?**
-Rule-based insights are deterministic, explainable, and zero-latency. Every insight maps directly to a threshold condition. LLMs add cost, latency, and rate-limit fragility for a task that structured logic handles better.
+**Why rule-based insights?** Every insight maps to a threshold, so it is explainable, instant and free of API costs or rate limits.
 
-**Why correlated physics instead of independent random noise?**
-Independent noise produces fake-looking data — temperature randomly increasing while electricity decreases makes no industrial sense. Correlated physics makes the simulation believable and the anomaly detection meaningful.
+**Why correlated simulation?** Independent noise gives unrealistic data, such as temperature rising while electricity falls. Causal links make the anomalies meaningful.
 
-**Why WebSocket over polling?**
-Telemetry systems require push-based streaming. REST polling at 2-second intervals would be 30 HTTP requests/minute per client. WebSocket maintains one persistent connection with server-controlled push cadence.
+**Why WebSockets over polling?** Telemetry is push-based. One persistent connection replaces about 30 requests a minute per client.
 
-**Why event-driven severity transitions instead of continuous state broadcast?**
-Events should be meaningful. Broadcasting "NORMAL" 30 times/minute creates noise. Firing only on state transitions creates a signal — exactly how industrial SCADA event logs work.
+**Why log only state transitions?** Repeating "NORMAL" every 2 seconds is noise. Logging changes gives a useful signal, as in industrial event logs.
 
----
+## Limitations
 
-## Future Roadmap
+- All machine data is simulated, not read from real sensors.
+- Thresholds are illustrative and not calibrated to real equipment.
+- No automated tests are included yet.
+- No authentication on the API or WebSocket.
 
+## Roadmap
 
-- [ ] Add InfluxDB for time-series persistence
-- [ ] Add pytest integration test suite
-- [ ] Historical trend charts (last 24h)
-- [ ] Multi-factory support
-- [ ] MQTT adapter for real IoT sensor integration
-- [ ] Predictive maintenance scoring (rolling degradation rate)
-
----
+- [ ] Automated tests (severity thresholds, simulation bounds, payload schema)
+- [ ] Time-series storage (e.g. InfluxDB or TimescaleDB)
+- [ ] Historical trend charts
+- [ ] MQTT adapter for real sensor input
+- [ ] Predictive maintenance scoring
 
 ## Author
 
-**Atulya Srivastava**
-Third Year CS Student · Mumbai, India
-[GitHub](https://github.com/atulyasriv) 
-
-
+**[YOUR NAME]**, Third-Year Student, Mumbai, India
+[GitHub](https://github.com/atulyasriv)
