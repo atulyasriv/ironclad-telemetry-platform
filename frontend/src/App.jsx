@@ -158,9 +158,12 @@ function App() {
 
   // ── WEBSOCKET ─────────────────────────────────
   useEffect(() => {
-    const socket = new WebSocket(
-      "wss://ironclad-backend-updated.onrender.com/ws/live-data",
-    );
+    const websocketUrl =
+      import.meta.env.VITE_WS_URL ||
+      (import.meta.env.DEV
+        ? "ws://127.0.0.1:8000/ws/live-data"
+        : "wss://ironclad-backend-updated.onrender.com/ws/live-data");
+    const socket = new WebSocket(websocketUrl);
     socket.onopen = () => setWsConnected(true);
     socket.onmessage = (event) => {
       const p = JSON.parse(event.data);
@@ -404,6 +407,7 @@ function App() {
                       "Health",
                       "Production",
                       "Severity",
+                      "ML Anomaly",
                     ].map((h) => (
                       <th
                         key={h}
@@ -465,6 +469,24 @@ function App() {
                             className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${SEV_DOT[m.severity] || SEV_DOT.NORMAL}`}
                           />
                           {m.severity}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`text-xs px-2 py-1 font-bold tracking-widest uppercase rounded ${
+                            m.anomaly_status === "ANOMALY"
+                              ? "text-red-700 bg-red-100 border border-red-300"
+                              : m.anomaly_status === "WARMING_UP"
+                                ? "text-gray-600 bg-gray-100 border border-gray-300"
+                                : "text-green-700 bg-green-100 border border-green-300"
+                          }`}
+                          title={
+                            m.anomaly_score == null
+                              ? `${m.anomaly_samples ?? 0} baseline readings collected`
+                              : `Isolation Forest score: ${m.anomaly_score}`
+                          }
+                        >
+                          {m.anomaly_status || "WAITING"}
                         </span>
                       </td>
                     </tr>

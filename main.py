@@ -7,6 +7,11 @@ import asyncio
 import time
 import httpx
 import os
+from collections import deque
+
+from sklearn.ensemble import IsolationForest
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 app = FastAPI()
 
@@ -29,7 +34,7 @@ app.add_middleware(
 # Free tier: openweathermap.org
 # ==============================
 
-OWM_API_KEY = os.environ.get("OWM_API_KEY", "69e8a40fbbdd5484ec0ae319bae37b94")
+OWM_API_KEY = os.environ.get("OWM_API_KEY", "")
 OWM_URL     = "https://api.openweathermap.org/data/2.5/weather?q=Nagpur,IN&appid={key}&units=metric"
 
 # ==============================
@@ -129,6 +134,87 @@ machines = {
         "severity":       "NORMAL",
     },
 }
+
+# ==============================
+# ISOLATION FOREST ANOMALY DETECTION
+# ==============================
+
+# Each machine keeps its own rolling telemetry history. The model is trained
+# on past readings and evaluates the newest reading before adding it to history.
+TELEMETRY_HISTORY_SIZE = 300
+MIN_TRAINING_SAMPLES = 40
+RETRAIN_EVERY_SAMPLES = 10
+
+telemetry_history = {
+    machine_id: deque(maxlen=TELEMETRY_HISTORY_SIZE)
+    for machine_id in machines
+}
+
+anomaly_models = {machine_id: None for machine_id in machines}
+samples_since_training = {machine_id: 0 for machine_id in machines}
+previous_anomaly_status = {machine_id: False for machine_id in machines}
+
+
+def detect_anomaly(machine_id: str, machine: dict) -> dict:
+    """Return Isolation Forest's assessment of the latest machine reading.
+
+    Features: electricity, temperature, production and machine health.
+    A separate model is maintained for each machine because their operating
+    ranges differ (for example, a boiler and an assembly line).
+    """
+    history = telemetry_history[machine_id]
+    current_reading = [
+        float(machine["electricity"]),
+        float(machine["temperature"]),
+        float(machine["production"]),
+        float(machine["machine_health"]),
+    ]
+
+    # Collect a baseline before attempting to classify observations.
+    if len(history) < MIN_TRAINING_SAMPLES:
+        history.append(current_reading)
+        return {
+            "detected": False,
+            "score": None,
+            "status": "WARMING_UP",
+            "samples": len(history),
+        }
+
+    # Fit initially, then refresh the model every 10 new observations rather
+    # than fitting five models on every three-second simulator cycle.
+    if (
+        anomaly_models[machine_id] is None
+        or samples_since_training[machine_id] >= RETRAIN_EVERY_SAMPLES
+    ):
+        model = make_pipeline(
+            StandardScaler(),
+            IsolationForest(
+                n_estimators=100,
+                contamination=0.05,
+                random_state=42,
+            ),
+        )
+        model.fit(list(history))
+        anomaly_models[machine_id] = model
+        samples_since_training[machine_id] = 0
+
+    model = anomaly_models[machine_id]
+    prediction = int(model.predict([current_reading])[0])
+    score = float(model.decision_function([current_reading])[0])
+    is_anomaly = prediction == -1
+
+    # Add the reading only after evaluating it, preventing the model from
+    # learning the observation before deciding whether it is unusual.
+    history.append(current_reading)
+    samples_since_training[machine_id] += 1
+
+    return {
+        "detected": is_anomaly,
+        "score": round(score, 4),
+        "status": "ANOMALY" if is_anomaly else "NORMAL",
+        "samples": len(history),
+    }
+
 
 # ==============================
 # AGGREGATED FACTORY VIEW
@@ -258,6 +344,27 @@ async def simulate_factory():
         machines["boiler"]["diesel"] = max(20000, min(120000,
             machines["boiler"]["diesel"] + random.randint(-800, 1200)))
 
+        # ── ISOLATION FOREST ANOMALY DETECTION ────
+        for key, m in machines.items():
+            result = detect_anomaly(key, m)
+            m["anomaly_detected"] = result["detected"]
+            m["anomaly_score"] = result["score"]
+            m["anomaly_status"] = result["status"]
+            m["anomaly_samples"] = result["samples"]
+
+            if result["detected"] and not previous_anomaly_status[key]:
+                push_event(
+                    f"Isolation Forest detected unusual behaviour in {m['name']}.",
+                    "WARNING",
+                )
+            elif not result["detected"] and previous_anomaly_status[key]:
+                push_event(
+                    f"{m['name']} returned to its normal telemetry pattern.",
+                    "INFO",
+                )
+
+            previous_anomaly_status[key] = result["detected"]
+
         # ── SEVERITY PER MACHINE ──────────────────
         for key, m in machines.items():
             sev      = compute_severity(m["electricity"], m["temperature"], m["machine_health"])
@@ -298,6 +405,17 @@ def generate_insights():
     # ── PER-MACHINE ───────────────────────────
     for key, m in machines.items():
         name = m["name"]
+
+        # ML-based anomaly detection complements the threshold-based rules below.
+        if m.get("anomaly_detected", False):
+            insights.append(
+                f"ANOMALY: Isolation Forest detected an unusual pattern in {name}."
+            )
+            recommendations.append(
+                f"Inspect {name} and investigate its electricity, temperature, "
+                "production and health readings."
+            )
+
         if m["temperature"] > 100:
             insights.append(f"CRITICAL: {name} at {m['temperature']}°C — thermal threshold exceeded.")
             recommendations.append(f"Emergency cooling inspection required for {name}.")

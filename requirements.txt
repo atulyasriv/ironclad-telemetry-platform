@@ -3,4 +3,4 @@ uvicorn[standard]
 requests
 httpx
 python-dotenv
-websockets
+websocketsscikit-learn>=1.4,<2.0

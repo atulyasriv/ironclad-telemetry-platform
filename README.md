@@ -238,3 +238,41 @@ Note: the field names `ai_operational_insights` and `ai_loading` are historical.
 
 **[YOUR NAME]**, Third-Year Student, Mumbai, India
 [GitHub](https://github.com/atulyasriv)
+
+
+## Isolation Forest anomaly detection
+
+The backend includes a per-machine Isolation Forest model that evaluates four telemetry features: electricity consumption, temperature, production and machine health. Each machine collects 40 baseline observations before the first model is trained. The model is refreshed after every 10 subsequent observations and evaluates each new reading against the existing history. Anomaly status, score and sample count are included in the existing WebSocket machine payload and shown in the Machine Fleet Status table.
+
+This project currently uses simulated machine telemetry; the anomaly detector therefore operates on simulated readings, not physical sensor data. `contamination=0.05` is an initial modelling assumption and should be tuned using representative labelled or reviewed operational data before production use.
+
+Install backend dependencies with `pip install -r requirements.txt`. Set `OWM_API_KEY` as an environment variable if live OpenWeatherMap data is required; without it, the weather integration uses its fallback behaviour.
+
+
+## Run locally
+
+### Backend (from the repository root)
+
+```bash
+python -m venv .venv
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+The backend listens at `http://127.0.0.1:8000`. The Isolation Forest baseline takes 40 readings per machine (about two minutes at the current three-second simulation interval) before classifying new readings.
+
+### Frontend (in a second terminal)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Vite development mode connects to the local backend WebSocket by default. To use a different backend, set `VITE_WS_URL` in `frontend/.env`.
+
+### Weather integration
+
+Copy `.env.example` to `.env` and set `OWM_API_KEY` if you want live OpenWeatherMap weather. The project can still run without this key; weather remains on its fallback values. Do not commit real API keys.
